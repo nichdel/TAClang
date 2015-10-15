@@ -1,30 +1,74 @@
 import random
+import csv
 
-c1 = ['m','n','p','t','k','s','f']
-c2 = ['p','t','k','s','f']
-c3 = ['r','l']
-v = ['a','e','i','o','u']
+inv_file = 'inventories.csv'
+syll_file = 'syllables.csv'
+rule_file = 'rules.csv'
 
-none = [""]
+inv_dict = {}
+with open(inv_file, 'r') as csvfile:
+    reader = csv.DictReader(csvfile, fieldnames=['name'], restkey='rest')
 
-syll1 = [[c1,none],[v],[c1,none]]
-syll2 = [[c2],[c3],[v],[c1,none]]
+    for row in reader:
+        name = row['name']
+        rest = row['rest']
+        inv_dict[name] = []
+        for entry in rest:
+            if entry[0] == '$':
+                inv_dict[name] += inv_dict[entry[1:]]
+            elif entry[0] == '-':
+                if entry[1] == '$':
+                    for rem_item in inv_dict[entry[2:]]:
+                        inv_dict[name].remove(rem_item)
+                else:
+                    inv_dict[name].remove(entry[1:])
+            else:
+                inv_dict[name].append(entry)
 
-sylllist = [syll1,syll2]
+syll_list = []
+with open(syll_file, 'r') as csvfile:
+    reader = csv.DictReader(csvfile, fieldnames=['head'], restkey='rest')
 
-rule1 = {"target":'p', "result":'b', "before":v, "after":v}
-rule2 = {"target":'t', "result":'d', "before":v, "after":v}
-rule3 = {"target":'k', "result":'g', "before":v, "after":v}
-rule4 = {"target":'s', "result":'z', "before":v, "after":v}
-rule5 = {"target":'f', "result":'v', "before":v, "after":v}
+    for row in reader:
+        construct = []
+        for item in ([row['head']] + row['rest']):
+            if item[0] == '$':
+                construct.append([inv_dict[item[1:]]])
+            elif item[0] == '?':
+                if item[1] == '$':
+                    construct.append([[''],inv_dict[item[2:]]])
+                else:
+                    construct.append([[''], item[1:]])
+            else:
+                construct.append([item])
+        syll_list.append(construct)
 
-rules = [rule1, rule2, rule3, rule4, rule5]
+rule_list = []
+with open(rule_file, 'r') as csvfile:
+    reader = csv.DictReader(csvfile)
+
+    for row in reader:
+        construct = {}
+        for key in row.keys():
+            item = row[key]
+            if item[0] == '$':
+                construct[key] = inv_dict[item[1:]]
+            else:
+                construct[key] = item
+        rule_list.append(construct)
+
+#TODO Use the new lists/dicts to generate words.
+
+print(inv_dict)
+for item in syll_list:
+    print(item)
+print(rule_list)
 
 def apply_rules(word):
     wordlist = []
     for c in range(len(word)):
         wordlist.append(word[c])
-        for r in rules:
+        for r in rule_list:
             if word[c] == r["target"]:
                 if (c-1 >= 0) and (word[c-1] in r["before"]):
                     if (c+1 < len(word)) and (word[c+1] in r["after"]):
@@ -35,7 +79,7 @@ def apply_rules(word):
 def word_make(length):
     word = ""
     for i in range(length):
-        for j in random.choice(sylllist):
+        for j in random.choice(syll_list):
             word += random.choice(random.choice(j))
     print(word)
     print(apply_rules(word))
